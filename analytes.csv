@@ -1,0 +1,31 @@
+Analyte,RT,Type
+13C-HCB,11.33,Internal Standard
+HCB,11.33,Target Compound
+13C_PCB_28,15.13,Internal Standard
+PCB_28+31,15.13,Target Compound
+13C-PCB_52,16.95,Internal Standard
+PCB_52,16.98,Target Compound
+13C_Trans-nonachlor,22.78,Internal Standard
+Trans-nonachlor,22.80,Target Compound
+"13C-4,4'-DDE",24.40,Internal Standard
+"4,4'-DDE",24.42,Target Compound
+13C-PCB_118,26.79,Internal Standard
+PCB_118,26.81,Target Compound
+13C-PCB_153,28.42,Internal Standard
+PCB_153+132,28.44,Target Compound
+"13C-4,4'-DDT",30.41,Internal Standard
+"4,4'_DDT",30.42,Target Compound
+F-BDE-47,33.42,Recovery Standard
+13C-PCB_180,35.73,Internal Standard
+PCB_180+193,35.74,Target Compound
+BDE_47,36.19,Target Compound
+BDE 104,40.25,Target Compound
+13C-PCB_194,43.04,Internal Standard
+BDE_100,43.06,Target Compound
+PCB_194,43.06,Target Compound
+BDE_99,45.36,Target Compound
+13C-PCB_206,45.81,Internal Standard
+PCB_206,45.83,Target Compound
+BDE_154,50.85,Target Compound
+BDE_153,53.93,Target Compound
+F-BDE_160,55.56,Internal Standard
