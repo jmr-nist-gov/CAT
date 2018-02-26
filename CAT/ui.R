@@ -41,13 +41,23 @@ shinyUI(fluidPage(
       tableOutput("test"),
       #rbokehOutput("chromatogram", width="100%", height="100%")
       fluidRow(
-        column(8,
-               plotOutput("chromatogram", click="chrom_click", width="100%", height="400px"),
-               plotOutput("chromview", brush=brushOpts("view_brush", direction="x"), width="100%", height="100px")
-               ),
-        column(4,
-               plotOutput("peakview", height="500px")
-        )
+        # column(8,
+               h3("Chromatogram"),
+               p("Drag to zoom"),
+               plotOutput("chromview", 
+                          brush=brushOpts("view_brush", direction="x", delayType="debounce"), 
+                          width="100%", height="100px"),
+               p("Click a peak to view it"),
+               plotOutput("chromatogram", 
+                          click="chrom_click", 
+                          width="100%", height="400px")
+               ,
+               # ),
+        # column(4,
+               h3("Peak View"),
+               htmlOutput("peakDescribe"),
+               plotOutput("peakview", height="560px")
+        # )
       )
     )
   )
