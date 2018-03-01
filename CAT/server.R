@@ -1,11 +1,24 @@
+#--------------------------------------------------------------
 #
-# This is the server logic of a Shiny web application. You can run the
-# application by clicking 'Run App' above.
+# Chromatogram Annotation Tool (CAT)
+#   - Current Version: 0.5
+#   - Author: Jared M. Ragland
+#   - Affiliation Institute: NIST
+#   - Affiliation Division: Chemical Sciences Division (646)
+#   - Affiliation Group: Environmental Specimen Bank Group (06)
+#   - Affiliation Program: Data Tool Development
+#   - Last Updated: 20180301
+#   - Contact: jared.ragland@nist.gov
+#   - Source: https://github.com/jmr-nist-gov/CAT
 #
-# Find out more about building applications with Shiny here:
+#--------------------------------------------------------------
 #
-#    http://shiny.rstudio.com/
+# A web application to quickly and transparently annotate any
+# given chromatographic run with labels for peaks.  Includes
+# support for manual annotation and multiple method files for
+# complex chromtographic runs with different target analytes.
 #
+#--------------------------------------------------------------
 
 x <- c("shiny", "tidyverse", "DT", "shinyjs", "ggrepel")
 lapply(x, require, character.only = TRUE)
@@ -15,10 +28,9 @@ shinyServer(function(session, input, output) {
   useShinyjs()
   disable("annotateMore")
   disable("saveIt")
-  # disable("nextChromatogram")
-  # disable("anotherChromatogram")
   dat <- reactiveValues()
   
+  # Draw line annotations on the overview and zoomed chromatograms
   addAnnotationMarks <- function() {
     if (!is.null(dat$analytes)) {
       dat$analytes <- dat$analytes %>%
@@ -43,6 +55,8 @@ shinyServer(function(session, input, output) {
     }
   }
   
+  # Load a .csv file of the total ion chromatogram trace
+  #  - Should expand this to allow for ion specificity
   getTic <- observeEvent(input$tic, {
     shinyjs::toggle("mask", anim = FALSE)
     dat$tic <- read.csv(
@@ -66,6 +80,7 @@ shinyServer(function(session, input, output) {
     }
   })
   
+  # Load a .csv file of expected analytes, their retention times, and their category
   getAna <- observeEvent(input$analytes, {
     tmp <- read.csv(
       input$analytes$datapath,
@@ -82,6 +97,7 @@ shinyServer(function(session, input, output) {
     }
   })
   
+  # Add annotation labels to the zoomed view - THIS SHOULD BE COLLAPSED INTO A SINGLE FUNCTION WITH LABELPEAK()
   labelZoom <- function() {
     if ("analytes" %in% names(dat)) {
       zLimX <- dat$chromZoom$coordinates$limits$x
@@ -96,6 +112,7 @@ shinyServer(function(session, input, output) {
     }
   }
   
+  # Add annotation labels to the peak view - THIS SHOULD BE COLLAPSED INTO A SINGLE FUNCTION WITH LABELZOOM()
   labelPeak <- function() {
     if ("analytes" %in% names(dat)) {
       zLimX <- dat$chromPeak$coordinates$limits$x
@@ -109,12 +126,12 @@ shinyServer(function(session, input, output) {
       dat$chromPeak
     }
   }  
+  
   output$chromview <- renderPlot(dat$chromOver)
   output$chromatogram <- renderPlot(labelZoom())
   
-  observeEvent({
-    input$view_brush
-  }, {
+  # When drawing on a section of the overview chromatogram, focus the zoomed chromatogram on that area.
+  observeEvent(input$view_brush, {
     xmin <- input$view_brush$xmin
     xmax <- input$view_brush$xmax
     ymax <-
@@ -125,9 +142,8 @@ shinyServer(function(session, input, output) {
     output$chromatogram <- renderPlot(labelZoom())
   })
   
-  observeEvent({
-    input$chrom_click
-  }, {
+  # When clicking on the zoomed chromatogram, show a peak and enable manual annotation
+  observeEvent(input$chrom_click, {
     x <- input$chrom_click$x
     xmod <- 0.25
     ymax <- dat$tic %>% filter(between(Time, x - xmod, x + xmod)) %>% pull(Abundance) %>% max()
@@ -158,6 +174,7 @@ shinyServer(function(session, input, output) {
     enable("annotateMore")
   })
   
+  # Get manual annotation from user
   observeEvent(input$annotateMore, {
     xZ <- dat$chromPeak$coordinates$limits$x
     ymax <- dat$tic %>% filter(between(Time, xZ[1], xZ[2])) %>% pull(Abundance) %>% max()
@@ -174,6 +191,7 @@ shinyServer(function(session, input, output) {
     ))
   })
 
+  # Add the manual annotation to the data file and redraw
   observeEvent(input$addAnnotation, {
     yLabel = dat$tic %>% 
       filter(
