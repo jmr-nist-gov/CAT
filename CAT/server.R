@@ -19,8 +19,8 @@ shinyServer(function(session, input, output) {
   # disable("anotherChromatogram")
   dat <- reactiveValues()
   
-  addZoomAnnotations <- function() {
-    if (!is.null(input$analytes)) {
+  addAnnotationMarks <- function() {
+    if (!is.null(dat$analytes)) {
       dat$analytes <- dat$analytes %>%
         mutate(yLabs = sapply(RT,
                               function(x) {
@@ -31,14 +31,15 @@ shinyServer(function(session, input, output) {
                               })
         )
       dat$chromOver <- dat$chromOver +
-        geom_vline(data = dat$analytes, aes(xintercept = RT, colour = Type))
+        geom_vline(data = dat$analytes, aes(xintercept = RT, colour = as.factor(Type))) +
+        labs(colour = "Expected RT: ")
       dat$chromZoom <- dat$chromZoom +
         geom_segment(data = dat$analytes,
                      aes(x = RT,
                          xend = RT,
                          y = -Inf,
                          yend = yLabs,
-                         colour = Type))
+                         colour = as.factor(Type)))
     }
   }
   
@@ -61,51 +62,23 @@ shinyServer(function(session, input, output) {
       scale_y_log10() +
       theme(legend.position = 'top')
     if (!is.null(input$analytes)) {
-      dat$analytes <- dat$analytes %>%
-        mutate(yLabs = sapply(RT,
-                              function(x) {
-                                dat$tic %>%
-                                  filter(between(Time, x-0.1, x+0.1)) %>%
-                                  pull(Abundance) %>%
-                                  max()
-                              })
-        )
-      dat$chromOver <- dat$chromOver +
-        geom_vline(data = dat$analytes, aes(xintercept = RT, colour = Type))
-      dat$chromZoom <- dat$chromZoom +
-        geom_segment(data = dat$analytes,
-                     aes(x = RT,
-                         xend = RT,
-                         y = -Inf,
-                         yend = yLabs,
-                         colour = Type))
+      addAnnotationMarks()
     }
   })
   
   getAna <- observeEvent(input$analytes, {
-    dat$analytes <- read.csv(
+    tmp <- read.csv(
       input$analytes$datapath,
-      stringsAsFactors = TRUE,
-      header = TRUE)
+      stringsAsFactors = FALSE,
+      header = TRUE) %>%
+      mutate(yLabs = 0)
+    if (is.null(dat$analytes)) {
+      dat$analytes <- tmp
+    } else {
+      dat$analytes <- rbind(dat$analytes, tmp)
+    }
     if (!is.null(input$tic)) {
-      dat$analytes <- dat$analytes %>%
-        mutate(yLabs = sapply(RT,
-                              function(x) {
-                                dat$tic %>%
-                                  filter(between(Time, x-0.1, x+0.1)) %>%
-                                  pull(Abundance) %>%
-                                  max()
-                              })
-        )
-      dat$chromOver <- dat$chromOver +
-        geom_vline(data = dat$analytes, aes(xintercept = RT, colour = Type))
-      dat$chromZoom <- dat$chromZoom +
-        geom_segment(data = dat$analytes,
-                     aes(x = RT,
-                         xend = RT,
-                         y = -Inf,
-                         yend = yLabs,
-                         colour = Type))
+      addAnnotationMarks()
     }
   })
   
@@ -117,7 +90,7 @@ shinyServer(function(session, input, output) {
                         aes(x = RT,
                             y = yLabs*1.05,
                             label = Analyte,
-                            colour = Type))
+                            colour = as.factor(Type)))
     } else {
       dat$chromZoom
     }
@@ -131,14 +104,13 @@ shinyServer(function(session, input, output) {
                         aes(x = RT,
                             y = yLabs*1.05,
                             label = Analyte,
-                            colour = Type))
+                            colour = as.factor(Type)))
     } else {
       dat$chromPeak
     }
   }  
   output$chromview <- renderPlot(dat$chromOver)
   output$chromatogram <- renderPlot(labelZoom())
-  # output$peakview <- renderPlot(dat$chromPeak)
   
   observeEvent({
     input$view_brush
@@ -161,7 +133,7 @@ shinyServer(function(session, input, output) {
     ymax <- dat$tic %>% filter(between(Time, x - xmod, x + xmod)) %>% pull(Abundance) %>% max()
     xact <- dat$tic %>% filter(Abundance == ymax) %>% pull(Time)
     desc <- paste("Actual RT: ", round(xact, 3))
-    if (!is.null(input$analytes)) {
+    if (!is.null(dat$analytes)) {
       xexp <- dat$analytes %>% filter(between(RT, x-xmod, x+xmod)) %>% pull(RT)
       peakName <- dat$analytes %>% filter(between(RT, x-xmod, x+xmod)) %>% pull(Analyte)
       if (is.na(peakName[1])) {
@@ -186,26 +158,47 @@ shinyServer(function(session, input, output) {
     enable("annotateMore")
   })
   
-  # observeEvent(input$annotateMore, {
-  #   x <- clickedRT
-  #   xmod <- 0.1
-  #   ymax <- tic %>% filter(between(Time, x - xmod, x + xmod)) %>% pull(Abundance) %>% max()
-  #   thisRT <- tic %>% filter(Abundance == ymax) %>% pull(Time)
-  #   showModal(modalDialog(
-  #     title <- NULL,
-  #     textInput(inputId = "newAnnotation",
-  #               label = paste("Manually add an annotation to the peak at", round(thisRT, 3), "minutes", sep=" "),
-  #               width = "100%"),
-  #     footer = tagList(
-  #       actionButton("addAnnotation", "Add"),
-  #       modalButton("Cancel")
-  #     )
-  #   ))
-  # })
-  # 
-  # observeEvent(input$addAnnotation, {
-  #   analytes <- rbind(analytes, c(input$newAnnotation, clickedRT, "Manual"))
-  #   removeModal()
-  # })
+  observeEvent(input$annotateMore, {
+    xZ <- dat$chromPeak$coordinates$limits$x
+    ymax <- dat$tic %>% filter(between(Time, xZ[1], xZ[2])) %>% pull(Abundance) %>% max()
+    thisRT <<- dat$tic %>% filter(Abundance == ymax) %>% pull(Time) %>% round(3)
+    showModal(modalDialog(
+      title <- NULL,
+      textInput(inputId = "newAnnotation",
+                label = paste("Manually add an annotation to the peak at", round(thisRT, 3), "minutes", sep=" "),
+                width = "100%"),
+      footer = tagList(
+        actionButton("addAnnotation", "Add"),
+        modalButton("Cancel")
+      )
+    ))
+  })
+
+  observeEvent(input$addAnnotation, {
+    yLabel = dat$tic %>% 
+      filter(
+        between(Time, thisRT-0.1, thisRT+0.1)
+        ) %>% 
+      pull(Abundance) %>% 
+      max()
+    if (is.null(dat$analytes)) {
+      dat$analytes <- list(Analyte = input$newAnnotation,
+                           RT = thisRT,
+                           Type = "Manual",
+                           yLabs = yLabel)
+      dat$analytes <- as.data.frame(dat$analytes, stringsAsFactors = FALSE)
+    } else {
+      dat$analytes <- rbind(dat$analytes, 
+                            as.data.frame(
+                              list(
+                                Analyte = input$newAnnotation, 
+                                RT = thisRT, 
+                                Type = "Manual", 
+                                yLabs = yLabel)))
+    }
+    addAnnotationMarks()
+    rm(thisRT, envir = parent.env(parent.env(parent.env(environment()))))
+    removeModal()
+  })
   
 })
