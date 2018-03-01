@@ -7,60 +7,138 @@
 #    http://shiny.rstudio.com/
 #
 
-require(shiny)
-require(tidyverse)
-require(plotly)
+x <- c("shiny", "tidyverse", "DT", "shinyjs", "ggrepel")
+lapply(x, require, character.only = TRUE)
 
-# Define server logic required to draw a histogram
-shinyServer(function(input, output) {
-  tic <- reactive(read.csv(req(input$tic$datapath), stringsAsFactors = TRUE, header = TRUE))
-  analytes <- reactive({
-    read.csv(req(input$analytes$datapath), stringsAsFactors = TRUE, header = TRUE) %>%
-      mutate(VJ = as.numeric(Type)-2)
-  })
-  plotIt <- function() {
-    if (is.null(input$analytes)) {
-      ggplot(tic(), aes(x = Time, y = Abundance)) +
-        geom_line() +
-        theme_classic() +
-        theme(axis.title.x = element_blank())
-    } else {
-      yLabs <- sapply(analytes()$RT, 
-                      function(x) {
-                        tic() %>% 
-                          filter(between(Time, x-0.1, x+0.1)) %>%
-                          pull(Abundance) %>%
-                          max()
-        })
-      ggplot(tic(), aes(x = Time, y = Abundance)) +
-        geom_vline(data = analytes(), aes(xintercept = RT, colour =
-                                            Type)) +
-        geom_text(data = analytes(), 
-                  aes(x = RT, y = yLabs*1.01, label = Analyte, colour = Type, vjust = VJ), hjust=1) +
-        geom_line() +
-        theme_classic() +
-        coord_cartesian(ylim=c(0, max(tic()$Abundance)*1.1)) +
-        theme(axis.title.x = element_blank(),
-              legend.position = "bottom")+
-        labs(colour="Expected RT of:")
+
+shinyServer(function(session, input, output) {
+  useShinyjs()
+  disable("annotateMore")
+  disable("saveIt")
+  # disable("nextChromatogram")
+  # disable("anotherChromatogram")
+  dat <- reactiveValues()
+  
+  addZoomAnnotations <- function() {
+    if (!is.null(input$analytes)) {
+      dat$analytes <- dat$analytes %>%
+        mutate(yLabs = sapply(RT,
+                              function(x) {
+                                dat$tic %>%
+                                  filter(between(Time, x-0.1, x+0.1)) %>%
+                                  pull(Abundance) %>%
+                                  max()
+                              })
+        )
+      dat$chromOver <- dat$chromOver +
+        geom_vline(data = dat$analytes, aes(xintercept = RT, colour = Type))
+      dat$chromZoom <- dat$chromZoom +
+        geom_segment(data = dat$analytes,
+                     aes(x = RT,
+                         xend = RT,
+                         y = -Inf,
+                         yend = yLabs,
+                         colour = Type))
     }
   }
   
-  output$chromview <- renderPlot({
-    p <- plotIt()
-    p$layers <- p$layers[-2]
-    p + guides(colour = "none")
+  getTic <- observeEvent(input$tic, {
+    shinyjs::toggle("mask", anim = FALSE)
+    dat$tic <- read.csv(
+      input$tic$datapath,
+      stringsAsFactors = TRUE, header = TRUE)
+    dat$chromBase <- dat$tic %>%
+      ggplot(aes(x = Time, y = Abundance))+
+      geom_line()  +
+      theme_classic() +
+      theme(legend.position = "none") +
+      labs(x = "")
+    dat$chromZoom <- dat$chromBase +  
+      coord_cartesian(ylim=c(0.1, max(dat$tic$Abundance)*1.1),
+                      xlim=c(min(dat$tic$Time), max(dat$tic$Time)/4)) +
+      xlab("Time (min)")
+    dat$chromOver <- dat$chromBase +
+      scale_y_log10() +
+      theme(legend.position = 'top')
+    if (!is.null(input$analytes)) {
+      dat$analytes <- dat$analytes %>%
+        mutate(yLabs = sapply(RT,
+                              function(x) {
+                                dat$tic %>%
+                                  filter(between(Time, x-0.1, x+0.1)) %>%
+                                  pull(Abundance) %>%
+                                  max()
+                              })
+        )
+      dat$chromOver <- dat$chromOver +
+        geom_vline(data = dat$analytes, aes(xintercept = RT, colour = Type))
+      dat$chromZoom <- dat$chromZoom +
+        geom_segment(data = dat$analytes,
+                     aes(x = RT,
+                         xend = RT,
+                         y = -Inf,
+                         yend = yLabs,
+                         colour = Type))
+    }
   })
-  output$chromatogram <- renderPlot({
-    plotIt() +
-      coord_cartesian(xlim = c(min(tic()$Time),  max(tic()$Time) / 4)) +
-      guides(colour = "none")
+  
+  getAna <- observeEvent(input$analytes, {
+    dat$analytes <- read.csv(
+      input$analytes$datapath,
+      stringsAsFactors = TRUE,
+      header = TRUE)
+    if (!is.null(input$tic)) {
+      dat$analytes <- dat$analytes %>%
+        mutate(yLabs = sapply(RT,
+                              function(x) {
+                                dat$tic %>%
+                                  filter(between(Time, x-0.1, x+0.1)) %>%
+                                  pull(Abundance) %>%
+                                  max()
+                              })
+        )
+      dat$chromOver <- dat$chromOver +
+        geom_vline(data = dat$analytes, aes(xintercept = RT, colour = Type))
+      dat$chromZoom <- dat$chromZoom +
+        geom_segment(data = dat$analytes,
+                     aes(x = RT,
+                         xend = RT,
+                         y = -Inf,
+                         yend = yLabs,
+                         colour = Type))
+    }
   })
-  output$peakview <- renderPlot({
-    plotIt() + 
-      coord_cartesian(xlim = c(min(tic()$Time), min(tic()$Time) + 2)) +
-      labs(x = "Time (min)")
-  })
+  
+  labelZoom <- function() {
+    if ("analytes" %in% names(dat)) {
+      zLimX <- dat$chromZoom$coordinates$limits$x
+      dat$chromZoom +
+        geom_text_repel(data = dat$analytes %>% filter(between(RT, zLimX[1]-0.25, zLimX[2]+0.25)),
+                        aes(x = RT,
+                            y = yLabs*1.05,
+                            label = Analyte,
+                            colour = Type))
+    } else {
+      dat$chromZoom
+    }
+  }
+  
+  labelPeak <- function() {
+    if ("analytes" %in% names(dat)) {
+      zLimX <- dat$chromPeak$coordinates$limits$x
+      dat$chromPeak +
+        geom_text_repel(data = dat$analytes %>% filter(between(RT, zLimX[1]-0.25, zLimX[2]+0.25)),
+                        aes(x = RT,
+                            y = yLabs*1.05,
+                            label = Analyte,
+                            colour = Type))
+    } else {
+      dat$chromPeak
+    }
+  }  
+  output$chromview <- renderPlot(dat$chromOver)
+  output$chromatogram <- renderPlot(labelZoom())
+  # output$peakview <- renderPlot(dat$chromPeak)
   
   observeEvent({
     input$view_brush
@@ -68,27 +146,24 @@ shinyServer(function(input, output) {
     xmin <- input$view_brush$xmin
     xmax <- input$view_brush$xmax
     ymax <-
-      tic() %>% filter(Time >= xmin &
-                         Time <= xmax) %>% pull(Abundance) %>% max()
-    output$chromatogram <- renderPlot({
-      plotIt() +
-        coord_cartesian(xlim = c(xmin, xmax),
-                        ylim = c(0, ymax*1.01)) +
-        guides(colour = "none")
-    })
+      dat$tic %>% filter(between(Time, xmin, xmax)) %>% pull(Abundance) %>% max()
+    dat$chromZoom <<- dat$chromZoom +
+      coord_cartesian(xlim = c(xmin, xmax),
+                      ylim = c(0, ymax*1.05))
+    output$chromatogram <- renderPlot(labelZoom())
   })
+  
   observeEvent({
     input$chrom_click
   }, {
     x <- input$chrom_click$x
-    xmod <- 0.1
-    ymax <-
-      tic() %>% filter(between(Time, x - xmod, x + xmod)) %>% pull(Abundance) %>% max()
-    xact <- tic() %>% filter(Abundance == ymax) %>% pull(Time)
+    xmod <- 0.25
+    ymax <- dat$tic %>% filter(between(Time, x - xmod, x + xmod)) %>% pull(Abundance) %>% max()
+    xact <- dat$tic %>% filter(Abundance == ymax) %>% pull(Time)
     desc <- paste("Actual RT: ", round(xact, 3))
     if (!is.null(input$analytes)) {
-      xexp <- analytes() %>% filter(between(RT, x-xmod, x+xmod)) %>% pull(RT)
-      peakName <- analytes() %>% filter(between(RT, x-xmod, x+xmod)) %>% pull(Analyte)
+      xexp <- dat$analytes %>% filter(between(RT, x-xmod, x+xmod)) %>% pull(RT)
+      peakName <- dat$analytes %>% filter(between(RT, x-xmod, x+xmod)) %>% pull(Analyte)
       if (is.na(peakName[1])) {
         desc <- paste("Unidentified Peak - ", desc, collapse = "<br/>")
       } else {
@@ -96,27 +171,41 @@ shinyServer(function(input, output) {
       }
     } else {
       xexp <- NULL
-      peakName <- NULL
+      desc <- paste("Unidentified Peak - ", desc, collapse = "<br/>")
     }
-    peakPlot <- plotIt() +
-      geom_vline(xintercept = xact,
-                 linetype = "longdash",
-                 colour = "black") +
-      coord_cartesian(xlim = c(x - 0.25, x + 0.25),
-                      ylim = c(0, ymax * 1.01)) +
-      labs(x = "Time (min)")
-    output$peakview <- renderPlot(peakPlot)
     output$peakDescribe <- renderUI(HTML(desc))
     output$chromatogram <- renderPlot({
-      xmin <- isolate(input$view_brush$xmin)
-      xmax <- isolate(input$view_brush$xmax)
-      ymax <- tic() %>% filter(between(Time, xmin, xmax)) %>% pull(Abundance) %>% max()
-      plotIt() +
-        coord_cartesian(xlim = c(xmin, xmax),
-                        ylim = c(0, ymax*1.01)) +
-        annotate("rect", xmin = (x-0.25), xmax = (x+0.25), ymin = -Inf, ymax = Inf, fill="grey50", alpha=0.1) +
-        guides(colour = "none")
+      labelZoom() +
+        annotate("rect", xmin = (x-0.25), xmax = (x+0.25), ymin = -Inf, ymax = Inf, fill="grey50", alpha=0.1)
     })
+    dat$chromPeak <- dat$chromZoom +
+      coord_cartesian(xlim = c(x-0.25, x+0.25),
+                      ylim = c(0, ymax*1.05)) +
+      annotate("segment", x=xact, xend=xact, y=-Inf, yend=ymax, linetype="longdash")
+    output$peakview <- renderPlot(labelPeak())
+    enable("annotateMore")
   })
+  
+  # observeEvent(input$annotateMore, {
+  #   x <- clickedRT
+  #   xmod <- 0.1
+  #   ymax <- tic %>% filter(between(Time, x - xmod, x + xmod)) %>% pull(Abundance) %>% max()
+  #   thisRT <- tic %>% filter(Abundance == ymax) %>% pull(Time)
+  #   showModal(modalDialog(
+  #     title <- NULL,
+  #     textInput(inputId = "newAnnotation",
+  #               label = paste("Manually add an annotation to the peak at", round(thisRT, 3), "minutes", sep=" "),
+  #               width = "100%"),
+  #     footer = tagList(
+  #       actionButton("addAnnotation", "Add"),
+  #       modalButton("Cancel")
+  #     )
+  #   ))
+  # })
+  # 
+  # observeEvent(input$addAnnotation, {
+  #   analytes <- rbind(analytes, c(input$newAnnotation, clickedRT, "Manual"))
+  #   removeModal()
+  # })
   
 })

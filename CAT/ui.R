@@ -11,54 +11,82 @@ if (!require(tidyverse)) install.packages("tidyverse")
 require(tidyverse)
 require(shiny)
 require(rbokeh)
+require(shinythemes)
+require(shinyjs)
 
 
 # Define UI for application that draws a histogram
-shinyUI(fluidPage(
-  
-  # Application title
-  titlePanel("Chromatogram Annotation Tool"),
-  
-  # Sidebar with a slider input for number of bins 
-  sidebarLayout(
-    sidebarPanel(
-       fileInput(inputId="tic",
-                 label="Total Ion Chromatogram:",
-                 multiple=TRUE,
-                 placeholder="No file selected"),
-       fileInput(inputId="analytes",
-                 label="Analyte Retention Times:",
-                 multiple=TRUE,
-                 placeholder="No file selected"),
-       selectInput(inputId="format",
-                   label="Output format:",
-                   choices=c(".png", ".jpg", ".tif"),
-                   selected=".tif")
-    ),
-    
-    # Show a plot of the generated distribution
-    mainPanel(
-      tableOutput("test"),
-      #rbokehOutput("chromatogram", width="100%", height="100%")
+shinyUI(fluidPage(#theme=shinytheme("flatly"),
+  useShinyjs(),
+  fluidRow(
+    titlePanel(NULL, "CAT v0.5"),
+    column(12, h1("Chromatogram Annotation Tool")),
+    # hr(),
+    # 
+    # # Sidebar with a slider input for number of bins 
+    # # sidebarLayout(
+    # # sidebarPanel(
+    column(12,
+           hr(),
+           h4("Load files"),
+           fluidRow(
+             column(6,
+                    fileInput(inputId = "tic",
+                              label = NULL,
+                              multiple = TRUE,
+                              accept = c("text/csv", "text/comma-separated-values,text/plain",".csv"),
+                              placeholder = "Total Ion Chromatogram",
+                              width = "100%")),
+             column(6, 
+                    fileInput(inputId = "analytes",
+                              label = NULL,
+                              multiple = TRUE,
+                              accept = c("text/csv", "text/comma-separated-values,text/plain",".csv"),
+                              placeholder = "Analyte Retention Times",
+                              width = "100%"))
+             # selectInput(inputId = "format",
+             #             label = "Output format:",
+             #             choices = c(".png", ".jpg", ".tif"),
+             #             selected = ".tif")
+           )
+    )
+  ),
+  hr(),
+  # Show a plot of the generated distribution
+  # mainPanel(
+  shinyjs::hidden(
+    div(id = "mask",
       fluidRow(
-        # column(8,
+        column(7,
                h3("Chromatogram"),
-               p("Drag to zoom"),
+               p("Navigate (drag to zoom)"),
                plotOutput("chromview", 
-                          brush=brushOpts("view_brush", direction="x", delayType="debounce"), 
-                          width="100%", height="100px"),
+                          brush = brushOpts("view_brush", direction = "x", delayType = "debounce"), 
+                          width = "100%", height = "150px"),
                p("Click a peak to view it"),
                plotOutput("chromatogram", 
-                          click="chrom_click", 
-                          width="100%", height="400px")
-               ,
-               # ),
-        # column(4,
+                          click = "chrom_click", 
+                          width = "100%", height = "425px")
+        ),
+        column(5,
                h3("Peak View"),
                htmlOutput("peakDescribe"),
-               plotOutput("peakview", height="560px")
-        # )
+               plotOutput("peakview", height = "600px"),
+               actionButton(inputId = "annotateMore",
+                            label = "Annotate this peak",
+                            icon = icon("pencil"),
+                            width = "100%")
+               )
+      ),
+      fluidRow(
+        column(12,
+               actionButton(inputId = "saveIt",
+                            label = "Save Annotations",
+                            icon = icon("download"),
+                            width = "100%")
+        )
       )
     )
   )
-))
+)
+)
