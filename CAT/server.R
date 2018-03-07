@@ -29,19 +29,23 @@ shinyServer(function(session, input, output) {
   disable("annotateMore")
   disable("saveIt")
   dat <- reactiveValues()
+  fromClick <- reactiveVal()
+  fromClick(FALSE)
   
   # Draw line annotations on the overview and zoomed chromatograms
-  addAnnotationMarks <- function() {
+  addAnnotationMarks <- function(genYLabs = FALSE) {
     if (!is.null(dat$analytes)) {
-      dat$analytes <- dat$analytes %>%
-        mutate(yLabs = sapply(RT,
-                              function(x) {
-                                dat$tic %>%
-                                  filter(between(Time, x-0.1, x+0.1)) %>%
-                                  pull(Abundance) %>%
-                                  max()
-                              })
-        )
+      if (genYLabs) {
+        dat$analytes <- dat$analytes %>%
+          mutate(yLabs = sapply(RT,
+                                function(x) {
+                                  dat$tic %>%
+                                    filter(between(Time, x-0.1, x+0.1)) %>%
+                                    pull(Abundance) %>%
+                                    max()
+                                })
+          )
+      }
       dat$chromOver <- dat$chromOver +
         geom_vline(data = dat$analytes, aes(xintercept = RT, colour = as.factor(Type))) +
         labs(colour = "Expected RT: ")
@@ -76,7 +80,7 @@ shinyServer(function(session, input, output) {
       scale_y_log10() +
       theme(legend.position = 'top')
     if (!is.null(input$analytes)) {
-      addAnnotationMarks()
+      addAnnotationMarks(TRUE)
     }
   })
   
@@ -93,7 +97,7 @@ shinyServer(function(session, input, output) {
       dat$analytes <- rbind(dat$analytes, tmp)
     }
     if (!is.null(input$tic)) {
-      addAnnotationMarks()
+      addAnnotationMarks(TRUE)
     }
   })
   
@@ -176,32 +180,58 @@ shinyServer(function(session, input, output) {
   
   # Get manual annotation from user
   observeEvent(input$annotateMore, {
+    fromClick(FALSE)
+    manualAnnotationPrompt(fromClick())
+  })
+  
+  getRT <- function() {
     xZ <- dat$chromPeak$coordinates$limits$x
     ymax <- dat$tic %>% filter(between(Time, xZ[1], xZ[2])) %>% pull(Abundance) %>% max()
-    thisRT <<- dat$tic %>% filter(Abundance == ymax) %>% pull(Time) %>% round(3)
+    RT <- dat$tic %>% filter(Abundance == ymax) %>% pull(Time)
+    return(RT)
+  }
+  
+  manualAnnotationPrompt <- function(fromClick = FALSE) {
+    if (fromClick) {
+      prompt <- paste("Manually add an annotation at", 
+                      round(input$peak_dblclick$x, 3), 
+                      "minutes at", 
+                      round(input$peak_dblclick$y, 0), 
+                      "intensity.", 
+                      sep=" ")
+    } else {
+      prompt <- paste("Manually add an annotation to the peak at", round(getRT(), 3), "minutes.", sep=" ")
+    }
     showModal(modalDialog(
       title <- NULL,
       textInput(inputId = "newAnnotation",
-                label = paste("Manually add an annotation to the peak at", round(thisRT, 3), "minutes", sep=" "),
+                label = prompt,
                 width = "100%"),
       footer = tagList(
         actionButton("addAnnotation", "Add"),
         modalButton("Cancel")
       )
     ))
-  })
-
-  # Add the manual annotation to the data file and redraw
-  observeEvent(input$addAnnotation, {
-    yLabel = dat$tic %>% 
-      filter(
-        between(Time, thisRT-0.1, thisRT+0.1)
+  }
+  
+  manualAnnotationAdd <- function(clickCheck = FALSE) {
+    annotationNew <- input$newAnnotation
+    if (clickCheck) {
+      yLabel <- input$peak_dblclick$y
+      RT <- input$peak_dblclick$x
+    } else {
+      RT <- getRT()
+      yLabel = dat$tic %>% 
+        filter(
+          between(Time, RT-0.1, RT+0.1)
         ) %>% 
-      pull(Abundance) %>% 
-      max()
+        pull(Abundance) %>% 
+        max()
+      output$peakDescribe <- renderUI(HTML(paste(annotationNew, " - Actual RT: ", round(RT, 3))))
+    }
     if (is.null(dat$analytes)) {
-      dat$analytes <- list(Analyte = input$newAnnotation,
-                           RT = thisRT,
+      dat$analytes <- list(Analyte = annotationNew,
+                           RT = RT,
                            Type = "Manual",
                            yLabs = yLabel)
       dat$analytes <- as.data.frame(dat$analytes, stringsAsFactors = FALSE)
@@ -209,14 +239,23 @@ shinyServer(function(session, input, output) {
       dat$analytes <- rbind(dat$analytes, 
                             as.data.frame(
                               list(
-                                Analyte = input$newAnnotation, 
-                                RT = thisRT, 
+                                Analyte = annotationNew, 
+                                RT = RT, 
                                 Type = "Manual", 
                                 yLabs = yLabel)))
     }
     addAnnotationMarks()
-    rm(thisRT, envir = parent.env(parent.env(parent.env(environment()))))
     removeModal()
+  }
+
+  # Add the manual annotation to the data file and redraw
+  observeEvent(input$addAnnotation, {
+    manualAnnotationAdd(fromClick())
   })
   
+  # Add manual annotation from double clicking the peak view
+  observeEvent(input$peak_dblclick, {
+    fromClick(TRUE)
+    manualAnnotationPrompt(fromClick())
+  })
 })
