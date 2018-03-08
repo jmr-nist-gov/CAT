@@ -32,25 +32,15 @@ shinyServer(function(session, input, output) {
   fromClick <- reactiveVal()
   fromClick(FALSE)
   
+  
   # Draw line annotations on the overview and zoomed chromatograms
   addAnnotationMarks <- function(genYLabs = FALSE) {
-    if (!is.null(dat$analytes)) {
-      if (genYLabs) {
-        dat$analytes <- dat$analytes %>%
-          mutate(yLabs = sapply(RT,
-                                function(x) {
-                                  dat$tic %>%
-                                    filter(between(Time, x-0.1, x+0.1)) %>%
-                                    pull(Abundance) %>%
-                                    max()
-                                })
-          )
-      }
-      dat$chromOver <- dat$chromOver +
-        geom_vline(data = dat$analytes, aes(xintercept = RT, colour = as.factor(Type))) +
-        labs(colour = "Expected RT: ")
+    dat$chromOver <- dat$chromOver +
+      geom_vline(data = dat$analytes, aes(xintercept = RT, colour = as.factor(Type))) +
+      labs(colour = "Annotation: ")
+    if (dim(dat$analytes %>% filter(Type !="Manual"))[1] > 0) {
       dat$chromZoom <- dat$chromZoom +
-        geom_segment(data = dat$analytes,
+        geom_segment(data = dat$analytes %>% filter(Type !="Manual"),
                      aes(x = RT,
                          xend = RT,
                          y = -Inf,
@@ -70,15 +60,15 @@ shinyServer(function(session, input, output) {
       ggplot(aes(x = Time, y = Abundance))+
       geom_line()  +
       theme_classic() +
-      theme(legend.position = "none") +
-      labs(x = "")
+      theme(legend.position = "none")
     dat$chromZoom <- dat$chromBase +  
       coord_cartesian(ylim=c(0.1, max(dat$tic$Abundance)*1.1),
                       xlim=c(min(dat$tic$Time), max(dat$tic$Time)/4)) +
-      xlab("Time (min)")
+      theme(axis.title.x = element_blank())
     dat$chromOver <- dat$chromBase +
       scale_y_log10() +
-      theme(legend.position = 'top')
+      theme(legend.position = 'bottom') +
+      xlab("Time (min)")
     if (!is.null(input$analytes)) {
       addAnnotationMarks(TRUE)
     }
@@ -89,8 +79,18 @@ shinyServer(function(session, input, output) {
     tmp <- read.csv(
       input$analytes$datapath,
       stringsAsFactors = FALSE,
-      header = TRUE) %>%
-      mutate(yLabs = 0)
+      header = TRUE)
+    if (!is.null(dat$tic)) {
+      tmp <- tmp %>%
+        mutate(yLabs = sapply(RT,
+                              function(x) {
+                                dat$tic %>%
+                                  filter(between(Time, x-0.1, x+0.1)) %>%
+                                  pull(Abundance) %>%
+                                  max()
+                              })
+        )
+    }
     if (is.null(dat$analytes)) {
       dat$analytes <- tmp
     } else {
@@ -106,11 +106,13 @@ shinyServer(function(session, input, output) {
     if ("analytes" %in% names(dat)) {
       zLimX <- dat$chromZoom$coordinates$limits$x
       dat$chromZoom +
-        geom_text_repel(data = dat$analytes %>% filter(between(RT, zLimX[1]-0.25, zLimX[2]+0.25)),
+        geom_label_repel(data = dat$analytes %>% filter(between(RT, zLimX[1]-0.25, zLimX[2]+0.25)),
                         aes(x = RT,
                             y = yLabs*1.05,
                             label = Analyte,
-                            colour = as.factor(Type)))
+                            colour = as.factor(Type)),
+                        fill = 'white',
+                        label.size = NA)
     } else {
       dat$chromZoom
     }
@@ -121,11 +123,13 @@ shinyServer(function(session, input, output) {
     if ("analytes" %in% names(dat)) {
       zLimX <- dat$chromPeak$coordinates$limits$x
       dat$chromPeak +
-        geom_text_repel(data = dat$analytes %>% filter(between(RT, zLimX[1]-0.25, zLimX[2]+0.25)),
+        geom_label_repel(data = dat$analytes %>% filter(between(RT, zLimX[1]-0.25, zLimX[2]+0.25)),
                         aes(x = RT,
                             y = yLabs*1.05,
                             label = Analyte,
-                            colour = as.factor(Type)))
+                            colour = as.factor(Type)),
+                        fill = 'white',
+                        label.size = NA)
     } else {
       dat$chromPeak
     }
