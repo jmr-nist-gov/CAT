@@ -1,31 +1,36 @@
+#--------------------------------------------------------------
 #
-# This is the user-interface definition of a Shiny web application. You can
-# run the application by clicking 'Run App' above.
+# Chromatogram Annotation Tool (CAT)
+#   - Current Version: 0.5
+#   - Author: Jared M. Ragland
+#   - Affiliation Institute: NIST
+#   - Affiliation Division: Chemical Sciences Division (646)
+#   - Affiliation Group: Environmental Specimen Bank Group (06)
+#   - Affiliation Program: Data Tool Development
+#   - Last Updated: 20180301
+#   - Contact: jared.ragland@nist.gov
+#   - Source: https://github.com/jmr-nist-gov/CAT
 #
-# Find out more about building applications with Shiny here:
-# 
-#    http://shiny.rstudio.com/
+#--------------------------------------------------------------
 #
+# A web application to quickly and transparently annotate any
+# given chromatographic run with labels for peaks.  Includes
+# support for manual annotation and multiple method files for
+# complex chromtographic runs with different target analytes.
+#
+#--------------------------------------------------------------
 
 if (!require(tidyverse)) install.packages("tidyverse")
 require(tidyverse)
 require(shiny)
-require(rbokeh)
 require(shinythemes)
 require(shinyjs)
 
-
-# Define UI for application that draws a histogram
 shinyUI(fluidPage(#theme=shinytheme("flatly"),
   useShinyjs(),
   fluidRow(
     titlePanel(NULL, "CAT v0.5"),
     column(12, h1("Chromatogram Annotation Tool")),
-    # hr(),
-    # 
-    # # Sidebar with a slider input for number of bins 
-    # # sidebarLayout(
-    # # sidebarPanel(
     column(12,
            hr(),
            h4("Load files"),
@@ -44,16 +49,10 @@ shinyUI(fluidPage(#theme=shinytheme("flatly"),
                               accept = c("text/csv", "text/comma-separated-values,text/plain",".csv"),
                               placeholder = "Analyte Retention Times",
                               width = "100%"))
-             # selectInput(inputId = "format",
-             #             label = "Output format:",
-             #             choices = c(".png", ".jpg", ".tif"),
-             #             selected = ".tif")
            )
     )
   ),
   hr(),
-  # Show a plot of the generated distribution
-  # mainPanel(
   shinyjs::hidden(
     div(id = "mask",
       fluidRow(
