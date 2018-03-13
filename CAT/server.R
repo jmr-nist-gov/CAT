@@ -17,6 +17,7 @@
 # given chromatographic run with labels for peaks.  Includes
 # support for manual annotation and multiple method files for
 # complex chromtographic runs with different target analytes.
+# Currently supports only a single trace (TIC).
 #
 #--------------------------------------------------------------
 
@@ -37,7 +38,7 @@ shinyServer(function(session, input, output) {
   # Load a .csv file of the total ion chromatogram trace
   #  - Should expand this to allow for ion specificity
   getTic <- observeEvent(input$tic, {
-    shinyjs::toggle("mask", anim = FALSE)
+    shinyjs::show("mask", anim = TRUE, animType = "slide", time = 0.1)
     dat$tic <- read.csv(
       input$tic$datapath,
       stringsAsFactors = TRUE, header = TRUE)
@@ -230,19 +231,24 @@ shinyServer(function(session, input, output) {
       xMax <- dat$breaks[b+1]+0.25
       tmpDat <- dat$analytes %>% filter(between(RT, xMin, xMax))
       yMax <- dat$tic %>% filter(between(Time, xMin, xMax)) %>% pull(Abundance) %>% max()
-      tmp <- dat$chromBase +
-        geom_segment(data = tmpDat,
-                     aes(x = RT,
-                         xend = RT,
-                         y = -Inf,
-                         yend = yLabs,
-                         colour = as.factor(Type))) +
-        geom_text_repel(data = tmpDat,
-                        aes(x = RT,
-                            y = yLabs*1.05,
-                            label = Analyte,
-                            colour = as.factor(Type)),
-                        show.legend = FALSE) +
+      if (dim(tmpDat)[1] > 1) {
+        tmp <- dat$chromBase +
+          geom_segment(data = tmpDat,
+                       aes(x = RT,
+                           xend = RT,
+                           y = -Inf,
+                           yend = yLabs,
+                           colour = as.factor(Type))) +
+          geom_text_repel(data = tmpDat,
+                          aes(x = RT,
+                              y = yLabs*1.05,
+                              label = Analyte,
+                              colour = as.factor(Type)),
+                          show.legend = FALSE)
+      } else {
+        tmp <- dat$chromBase
+      }
+      tmp <- tmp +
         scale_x_continuous(limits = c(xMin, xMax)) +
         scale_y_continuous(labels = scientific, limits = c(0, yMax * 1.1)) +
         theme(plot.caption = element_text(size = 5),
@@ -253,9 +259,9 @@ shinyServer(function(session, input, output) {
              x = "Time (min)",
              y = "Abundance (m/z)",
              caption = paste("Created with Chromatogram Annotation Tool v", 
-                           version, 
-                           "\nA product of NIST Data Tool Development\nPowered by RStudio and Shiny", 
-                           sep=""))
+                             version, 
+                             "\nA product of NIST Data Tool Development\nPowered by RStudio and Shiny", 
+                             sep=""))
       switch (fType,
               .png = ggsave(tName, tmp, device = "png", width = xSize, height = ySize, units = "in"),
               .jpg = ggsave(tName, tmp, device = "jpeg", width = xSize, height = ySize, units = "in"),
@@ -332,7 +338,8 @@ shinyServer(function(session, input, output) {
     dat$chromPeak <- dat$chromZoom +
       coord_cartesian(xlim = c(x-0.25, x+0.25),
                       ylim = c(0, ymax*1.05)) +
-      annotate("segment", x=xact, xend=xact, y=-Inf, yend=ymax, linetype="longdash")
+      annotate("segment", x=xact, xend=xact, y=-Inf, yend=ymax, linetype="longdash") +
+      labs(x = "Time (min)")
     output$peakview <- renderPlot(labelPeak())
     enable("annotateMore")
   })
@@ -363,24 +370,31 @@ shinyServer(function(session, input, output) {
                plotOutput("savePlot",
                           click = "savePlotClick",
                           height = "200px")
-               ),
+        ),
         column(12,
                textInput(inputId = "saveTitle",
-                         label = "Title:",
-                         width = "100%")
-               ),
-        column(8,
-               textInput(inputId = "saveFile",
-                         label = "File name:",
+                         label = "Title",
                          width = "100%")
         ),
-        column(4,
+        column(10,
+        # column(8,
+               textInput(inputId = "saveFile",
+                         label = "File name (without extension)",
+                         width = "100%")
+        ),
+        column(2,
                selectInput(inputId = "saveType",
-                           label = "Format:",
+                           label = "Format",
                            choices = c(".png", ".jpg", ".tif", ".pdf"),
                            selected = ".tif",
                            width = "100%")
-        )
+        )#,
+        # column(2,
+        #        br(),
+        #        checkboxInput(inputId = "retain",
+        #                      label = "Archive",
+        #                      value = FALSE)
+        # )
       ),
       footer = tagList(
         downloadButton("saveThis", "Save"),

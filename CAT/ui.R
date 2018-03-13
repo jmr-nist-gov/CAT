@@ -62,7 +62,7 @@ shinyUI(fluidPage(#theme=shinytheme("flatly"),
                plotOutput("chromatogram", 
                           click = "chrom_click", 
                           width = "100%", height = "425px"),
-               p("Navigate (drag to zoom)"),
+               p("Navigate (drag to select a zoom region)"),
                plotOutput("chromview", 
                           brush = brushOpts("view_brush", direction = "x", delayType = "debounce"), 
                           width = "100%", height = "150px")
