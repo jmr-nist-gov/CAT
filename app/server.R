@@ -21,9 +21,18 @@
 #
 #--------------------------------------------------------------
 
-x <- c("shiny", "tidyverse", "DT", "shinyjs", "ggrepel", "scales")
-lapply(x, require, character.only = TRUE)
-
+if (!require(tidyverse)) install.packages("tidyverse")
+if (!require(shiny)) install.packages("shiny")
+if (!require(DT)) install.packages("DT")
+if (!require(shinyjs)) install.packages("shinyjs")
+if (!require(ggrepel)) install.packages("ggrepel")
+if (!require(scales)) install.packages("scales")
+library(tidyverse)
+library(shiny)
+library(DT)
+library(shinyjs)
+library(ggrepel)
+library(scales)
 
 shinyServer(function(session, input, output) {
   # SETUP VALUES -------------------------------------------------------------------------------------------------------

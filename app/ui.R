@@ -21,10 +21,13 @@
 #--------------------------------------------------------------
 
 if (!require(tidyverse)) install.packages("tidyverse")
-require(tidyverse)
-require(shiny)
-require(shinythemes)
-require(shinyjs)
+if (!require(shiny)) install.packages("shiny")
+if (!require(shinythemes)) install.packages("shinythemes")
+if (!require(shinyjs)) install.packages("shinyjs")
+library(tidyverse)
+library(shiny)
+library(shinythemes)
+library(shinyjs)
 
 shinyUI(fluidPage(#theme=shinytheme("flatly"),
   useShinyjs(),
@@ -48,13 +51,13 @@ shinyUI(fluidPage(#theme=shinytheme("flatly"),
                               accept = c("text/csv", "text/comma-separated-values,text/plain",".csv"),
                               placeholder = "Total Ion Chromatogram",
                               width = "100%")),
-             # column(4,
-             #        fileInput(inputId = "ions",
-             #                  label = NULL,
-             #                  multiple = TRUE,
-             #                  accept = c("text/csv", "text/comma-separated-values,text/plain",".csv"),
-             #                  placeholder = "Selected Ion(s) Chromatogram",
-             #                  width = "100%")),
+             column(4,
+                    fileInput(inputId = "ions",
+                              label = NULL,
+                              multiple = TRUE,
+                              accept = c("text/csv", "text/comma-separated-values,text/plain",".csv"),
+                              placeholder = "Selected Ion(s) Chromatogram",
+                              width = "100%")),
              column(4, 
                     fileInput(inputId = "analytes",
                               label = NULL,
