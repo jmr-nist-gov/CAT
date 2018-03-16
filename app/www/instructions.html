@@ -1,0 +1,48 @@
+<p>Many chromatographic instrument software packages allow for annotation of chromatograms produced, but these are often not suitable for publication or inclusion in a report. To address this, the Chromatogram Annotation Tool seeks to provide an intuitive, interactive manner in which to rapidly annotate your chromatograms.  Simply load your files and let the CAT do the work.  No validity checks are performed on files provided to the CAT (outside necessary header names).</p>
+<hr/>
+<ol>
+	<li>Load Files
+		<ul>
+			<li>Valid inputs should be in comma separated value format (.csv).</li>
+			<li>To generate the chromatogram, load either a total ion chromatogram file with Time and Abundance as columns, or a selected ion chromatogram file with Time, Abundance, and Ion as columns.  Do not load both.</li>
+			<li>To automatically annotate a number of analytes at once, load a file of expected retention times for your analytes with Analyte, RT, and Type as columns.</li>
+		</ul>
+	</li>
+	<br/>
+	<li>Navigation
+		<ul>
+			<li>Three chromatogram views are provided:
+				<ol>
+					<li>Chromatogram provides the a zoomed view of the chromatogram.  Click on a peak to view it directly.</li> 
+					<li>Navigate the overall chromatogram by selecting a range along the x-axis; click and drag your mouse to select.  Vertical lines, present if annotations have been made, indicate the location of an annotation.</li>
+					<li>Peak view shows a narrow time window focused on where the chromatogram was clicked.  The maximum intensity within plus or minus 0.1 minutes is identified by a dashed black line and a peak, if identified in the analyte file, is named and expected/actual retention times displayed.  The CAT does not currently identify peaks or their centroids, only the maximum abundance point; use care when clicking on the chromatogram to align the dashed black line with the peak.</li>
+				</ol>
+			</li>
+		</ul>
+	</li>
+	<br/>
+	<li>Create Annotations
+		<ul>
+			<li>When an analyte file is loaded, peaks are automatically annotated with the analyte name positioned at the maximal abundance at that retention time.</li>
+			<li>Annotations are automatically repelled away from one another using the "ggrepel" package.  This only considers the text labels themselves and not the plot.  Many annotations in the same view may become difficult to read.</li>
+			<li>Manual annotations can be added to the peak view in two manners.
+				<ol>
+					<li>Click the button labeled "Annotate this peak" to add your annotation at the retention time flagged by the dashed black line and the corresponding abundance.  This is most useful for labeling a peak.</li>
+					<li>Double-click the peak view to add your annotation directly where the plot is clicked.</li>
+				</ol>
+			</li>
+		</ul>
+	</li>
+	<br/>
+	<li>Save Annotations
+		<ol>
+			<li>When you are satisfied with your annotations, click the "Save Annotations" button to launch the export process.</li>
+			<li>Split the annotated chromatogram for clarity by clicking on the resulting chromatogram overview.  Split it into as many as appropriate by continuing to click to add break points.</li>
+			<li>Provide a title to add to each figure, a file name, and the desired format.</li>
+			<li>Click "Save" and wait for the CAT to finish packing your figures into a zipped archive.  Your download will begin shortly.</li>
+		</ol>
+	</li>
+</ol>
+<hr/>
+<p>Multiple files may be added sequentially to the analyte list for inclusion on a single chromatogram.  To apply the current annotations to a new chromatogram, simple load another TIC or SIC, depending which you're working with.  Break points, if set, will be retained when a new chromatogram is loaded to preserve consistentcy of presentation.
+<br/>

@@ -58,8 +58,6 @@ shinyServer(function(session, input, output) {
       xlab("Time (min)")
     if (!is.null(input$analytes)) {
       addAnnotationMarks(TRUE)
-    } else {
-      dat$breaks <- round(range(dat$tic$Time), 0)
     }
   })
   
@@ -105,8 +103,8 @@ shinyServer(function(session, input, output) {
                          yend = yLabs,
                          colour = as.factor(Type)))
     }
-    dat$breaks <- round(range(dat$tic$Time), 0)
-    updateSavePlot()
+    # dat$breaks <- round(range(dat$tic$Time), 0)
+    # updateSavePlot()
   }
   
   # Add annotation labels to the zoomed view - THIS SHOULD BE COLLAPSED INTO A SINGLE FUNCTION WITH LABELPEAK()
@@ -208,6 +206,9 @@ shinyServer(function(session, input, output) {
   
   # Add split reference lines to the save plot to guide splitting
   updateSavePlot <- function() {
+    if (!exists("dat$breaks")) {
+      dat$breaks <- round(range(dat$tic$Time), 0)
+    }
     if (!is.null(input$savePlotClick$x)) {
       dat$breaks <- c(dat$breaks, input$savePlotClick$x)
     }
@@ -363,6 +364,7 @@ shinyServer(function(session, input, output) {
   
   # Get download parameters
   observeEvent(input$saveIt, {
+    updateSavePlot()
     showModal(modalDialog(
       title <- h4("Click to set download split points."),
       fluidRow(
@@ -421,4 +423,42 @@ shinyServer(function(session, input, output) {
         disable("saveThis")
       }
     })
+  
+  # Load instructions window
+  observeEvent({input$help}, 
+               {
+                 showModal(modalDialog(
+                   title = "Instructions for Use of the CAT",
+                   # fluidRow(column(12,
+                     includeHTML("www/instructions.html"), #)),
+                   # fluidRow(column(12,
+                   #   img(src="A product of NIST DTD.jpg", 
+                   #       align="right",
+                   #       width = "224px",
+                   #       height = "60px"))),
+                   size = "l",
+                   easyClose = TRUE,
+                   footer = tagList(
+                     img(src="A product of NIST DTD.jpg", 
+                         align="left"),
+                     modalButton("Dismiss")
+                   )
+                 ))
+               })
+  
+  # Load about modal window
+  observeEvent({input$about}, 
+               {
+                 showModal(modalDialog(
+                   title = "About the Chromatogram Annotation Tool",
+                   includeHTML("www/about.html"),
+                   size = "l",
+                   easyClose = TRUE,
+                   footer = tagList(
+                     img(src="A product of NIST DTD.jpg", 
+                         align="left"),
+                     modalButton("Dismiss")
+                   )
+                 ))
+               })
 })
